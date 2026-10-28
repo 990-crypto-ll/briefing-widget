@@ -1,0 +1,13 @@
+*.iml
+.gradle/
+/local.properties
+/.idea/
+/build/
+/app/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+local.properties
+# 通过 GitHub 应用接口推送时无法包含二进制文件，wrapper jar 请本地生成：
+# 用 Android Studio 打开工程会自动补全，或执行一次 `gradle wrapper`
+gradle/wrapper/gradle-wrapper.jar

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="app_bg">#0C1322</color>
+    <color name="ink">#F2F4F7</color>
+    <color name="ink_secondary">#C3CEDF</color>
+    <color name="ink_faint">#7E8CA6</color>
+    <color name="card_bg">#182238</color>
+    <color name="card_border">#2A3752</color>
+    <color name="accent_finance">#84ADFF</color>
+    <color name="accent_finance_bg">#16294D</color>
+    <color name="accent_ai">#BFAFF7</color>
+    <color name="accent_ai_bg">#2A2149</color>
+    <color name="accent_other">#FDB022</color>
+    <color name="accent_other_bg">#3A2A12</color>
+</resources>

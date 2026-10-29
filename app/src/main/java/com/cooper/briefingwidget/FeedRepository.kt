@@ -75,7 +75,7 @@ object FeedRepository {
         return base.replace("feed.json", "feed-$date.json")
     }
 
-    /** 加载某一天的历史快报（只走网络，不写缓存）。 */
+    /** 加载某一天的历史快报（只走网络，不写缓存）。主地址拉不到时自动走镜像。 */
     fun loadFeedForDate(context: Context, date: String, callback: (Feed?) -> Unit) {
         val appContext = context.applicationContext
         val url = datedFeedUrl(appContext, date)
@@ -84,27 +84,52 @@ object FeedRepository {
             return
         }
         executor.execute {
-            val feed = try {
-                val conn = (URL(url).openConnection() as HttpURLConnection).apply {
-                    connectTimeout = 10_000
-                    readTimeout = 15_000
-                    requestMethod = "GET"
-                    setRequestProperty("Accept", "application/json")
-                }
-                try {
-                    if (conn.responseCode in 200..299) {
-                        val text = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-                        parseFeed(text)
-                    } else {
-                        null
-                    }
-                } finally {
-                    conn.disconnect()
-                }
-            } catch (e: Exception) {
-                null
+            var feed: Feed? = null
+            for (candidate in candidateUrls(url)) {
+                val text = fetchText(candidate) ?: continue
+                feed = parseFeed(text)
+                if (feed != null) break
             }
             callback(feed)
+        }
+    }
+
+    /**
+     * 给一个 feed 地址生成候选地址列表：原地址在前；若是 GitHub raw 地址，
+     * 再补 jsDelivr 和 githack 两个 CDN 镜像。某些网络直连 GitHub 不稳定，
+     * 拉取时按顺序尝试，第一个成功解析的为准。
+     */
+    private fun candidateUrls(url: String): List<String> {
+        val urls = mutableListOf(url)
+        val m = Regex("^https://raw\\.githubusercontent\\.com/([^/]+)/([^/]+)/([^/]+)/(.+)$").find(url)
+        if (m != null) {
+            val (owner, repo, branch, path) = m.destructured
+            urls.add("https://cdn.jsdelivr.net/gh/$owner/$repo@$branch/$path")
+            urls.add("https://raw.githack.com/$owner/$repo/$branch/$path")
+        }
+        return urls
+    }
+
+    /** 简单 GET 拉文本，失败返回 null。 */
+    private fun fetchText(url: String): String? {
+        return try {
+            val conn = (URL(url).openConnection() as HttpURLConnection).apply {
+                connectTimeout = 8_000
+                readTimeout = 12_000
+                requestMethod = "GET"
+                setRequestProperty("Accept", "application/json")
+            }
+            try {
+                if (conn.responseCode in 200..299) {
+                    conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
+                } else {
+                    null
+                }
+            } finally {
+                conn.disconnect()
+            }
+        } catch (e: Exception) {
+            null
         }
     }
 
@@ -120,27 +145,19 @@ object FeedRepository {
     }
 
     private fun fetchAndCache(context: Context): Feed? {
-        return try {
-            val url = URL(getFeedUrl(context))
-            val conn = (url.openConnection() as HttpURLConnection).apply {
-                connectTimeout = 10_000
-                readTimeout = 15_000
-                requestMethod = "GET"
-                setRequestProperty("Accept", "application/json")
-            }
+        // 主地址（GitHub raw）在部分网络下连不上，按候选顺序尝试镜像
+        for (candidate in candidateUrls(getFeedUrl(context))) {
+            val text = fetchText(candidate) ?: continue
+            val feed = parseFeed(text) ?: continue
+            // 拉取成功才写缓存，保证缓存永远是完整的合法数据
             try {
-                if (conn.responseCode !in 200..299) return null
-                val text = conn.inputStream.bufferedReader(Charsets.UTF_8).use { it.readText() }
-                val feed = parseFeed(text) ?: return null
-                // 拉取成功才写缓存，保证缓存永远是完整的合法数据
                 File(context.filesDir, CACHE_FILE).writeText(text, Charsets.UTF_8)
-                feed
-            } finally {
-                conn.disconnect()
+            } catch (e: Exception) {
+                // 缓存写失败不影响本次展示
             }
-        } catch (e: Exception) {
-            null
+            return feed
         }
+        return null
     }
 
     private fun loadFromCacheOrAssets(context: Context): Feed? {

@@ -3,7 +3,7 @@
 一个原生安卓应用：每天早上读取一份云端发布的 `feed.json` 快报数据，在手机桌面小组件和 App 内以「英文在前、中文紧随其后」的双语形式展示当天最重要的金融消息与 AI 用法/应用。
 
 - 包名：`com.cooper.briefingwidget`
-- 当前版本：**1.3**（versionCode 4）
+- 当前版本：**1.4**（versionCode 5）
 - 纯原生实现，**零第三方库**：Kotlin + Activity + AppWidgetProvider/RemoteViews，网络用 `HttpURLConnection`，JSON 解析用系统自带的 `org.json`
 - minSdk 26 / targetSdk 34，AGP 8.5.2 + Kotlin 1.9.24 + Gradle 8.7
 
@@ -32,6 +32,8 @@ App 本身不抓新闻。数据由外部每天早上 8:00（Asia/Shanghai）整�
 - 历史各期：`feed-2026-10-28.json` 这样的带日期副本
 
 拉取链路：`FeedRepository` 拉取 → 成功写缓存 `filesDir/feed_cache.json` → 失败读缓存 → 无缓存读 APK 内置 `assets/feed.json`。
+
+部分网络直连 GitHub raw 不稳定，v1.4 起拉取按「主地址 → jsDelivr 镜像（cdn.jsdelivr.net/gh/…）→ githack 镜像（raw.githack.com/…）」顺序自动切换，第一个成功解析的为准；每日发布流程会在推送后主动刷新 jsDelivr 缓存（purge），保证镜像新鲜。
 
 ## feed.json 结构
 
